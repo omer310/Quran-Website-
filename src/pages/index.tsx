@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react'
-import { Box, VStack, Heading, Text, Button, useToast, IconButton } from '@chakra-ui/react'
-import { StarIcon } from '@chakra-ui/icons'
+import { useState, useEffect, useCallback } from 'react'
+import { Box, VStack, Heading, Text, useToast, IconButton, Container, Flex, Spinner, Fade, useColorModeValue, Input, Button, useDisclosure } from '@chakra-ui/react'
+import { StarIcon, RepeatIcon, ExternalLinkIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, InfoIcon } from '@chakra-ui/icons'
 import axios from 'axios'
 import Header from '../components/Header'
+import moment from 'moment-hijri'
+import TafsirModal from '../components/TafsirModal'
 
 interface Verse {
   number: number
@@ -16,24 +18,39 @@ interface Verse {
   date: string
 }
 
-export default function Home() {
+const ISLAMIC_MONTHS = [
+  'Muharram', 'Safar', 'Rabi al-awwal', 'Rabi al-thani', 'Jumada al-awwal', 'Jumada al-thani',
+  'Rajab', "Sha'ban", 'Ramadan', 'Shawwal', 'Dhu al-Qadah', 'Dhu al-Hijjah'
+];
+
+interface HomeProps {
+  onSelectBackground: (background: string) => void;
+}
+
+export default function Home({ onSelectBackground }: HomeProps) {
   const [verse, setVerse] = useState<Verse | null>(null)
   const [loading, setLoading] = useState(true)
   const toast = useToast()
   const [isFavorite, setIsFavorite] = useState(false)
+  const [currentDate, setCurrentDate] = useState({
+    gregorian: '',
+    time: '',
+    hijri: ''
+  })
+  const { isOpen, onOpen, onClose } = useDisclosure()
 
   useEffect(() => {
     fetchVerse();
+    updateCurrentDate();
+    const timer = setInterval(updateCurrentDate, 1000);
+    return () => clearInterval(timer);
   }, []);
 
   const fetchVerse = async () => {
     setLoading(true);
-    console.log('Fetching new verse...');
     try {
       const response = await axios.get('http://localhost:5000/api/verses/random');
-      console.log('Received response:', response.data);
       setVerse(response.data);
-      // Force a re-render by updating a state
       setLoading(false);
     } catch (error) {
       console.error('Error fetching verse:', error);
@@ -83,7 +100,11 @@ export default function Home() {
           duration: 2000,
         })
       } else {
-        localStorage.setItem('favorites', JSON.stringify([...favorites, verse]))
+        const newFavorite = {
+          ...verse,
+          date: new Date().toISOString()
+        }
+        localStorage.setItem('favorites', JSON.stringify([...favorites, newFavorite]))
         setIsFavorite(true)
         toast({
           title: 'Added to favorites',
@@ -103,31 +124,198 @@ export default function Home() {
     }
   }, [verse])
 
+  const updateCurrentDate = () => {
+    const now = moment();
+    const hijriNow = now.clone().locale('en-US');
+    
+    setCurrentDate({
+      gregorian: now.format('MMMM D, YYYY'),
+      time: now.format('hh:mm:ss A'),
+      hijri: `${ISLAMIC_MONTHS[hijriNow.iMonth()]} ${hijriNow.iDate()}, ${hijriNow.iYear()} AH`
+    });
+  };
+
+  const bgColor = useColorModeValue('rgba(255, 255, 255, 0.8)', 'rgba(26, 32, 44, 0.8)')
+  const textColor = useColorModeValue('gray.800', 'white')
+  const arabicTextColor = useColorModeValue('gray.900', 'gray.100')
+  const borderColor = useColorModeValue('gray.200', 'gray.700')
+
+  const fetchSpecificVerse = async (surahNumber: number, verseNumber: number) => {
+    setLoading(true);
+    try {
+      const response = await axios.get(`http://localhost:5000/api/verses/${surahNumber}/${verseNumber}`);
+      setVerse(response.data);
+      setLoading(false);
+    } catch (error) {
+      console.error('Error fetching verse:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to fetch verse. Please try again.',
+        status: 'error',
+        duration: 5000,
+        isClosable: true,
+      });
+      setLoading(false);
+    }
+  };
+
+  const goToNextVerse = () => {
+    if (verse) {
+      const nextVerseNumber = verse.number + 1;
+      fetchSpecificVerse(verse.surah.number, nextVerseNumber);
+    }
+  };
+
+  const goToPreviousVerse = () => {
+    if (verse && verse.number > 1) {
+      const previousVerseNumber = verse.number - 1;
+      fetchSpecificVerse(verse.surah.number, previousVerseNumber);
+    }
+  };
+
+  const handleBackgroundChange = useCallback((newBackground: string) => {
+    // This function should be implemented in your _app.tsx
+    // and passed down as a prop to this component
+  }, [])
+
   return (
-    <Box minHeight="100vh">
-      <Header />
-      <VStack spacing={8} textAlign="center" p={8}>
-        <Heading as="h1" size="2xl">Quran Verse of the Day</Heading>
-        {loading ? (
-          <Text>Loading...</Text>
-        ) : verse ? (
-          <>
-            <Text fontSize="xl" fontWeight="bold">{verse.surah.englishName} - Verse {verse.number}</Text>
-            <Text fontSize="2xl" fontStyle="italic">{verse.text}</Text>
-            <Text fontSize="xl">{verse.translation}</Text>
-          </>
-        ) : (
-          <Text>Failed to load verse. Please try again.</Text>
-        )}
-        <Button onClick={shareVerse} colorScheme="blue">Share</Button>
-        <IconButton
-          aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
-          icon={<StarIcon />}
-          onClick={toggleFavorite}
-          colorScheme={isFavorite ? 'yellow' : 'gray'}
+    <Box minHeight="100vh" pt={["16", "20", "24"]}>
+      <Header onSelectBackground={onSelectBackground} />
+      <Container maxW="container.md" py={[4, 8, 12]}>
+        <VStack spacing={[4, 6, 8]} textAlign="center">
+          <Box
+            bg="rgba(0, 0, 0, 0.6)"
+            p={[2, 3, 4]}
+            borderRadius="lg"
+            width="full"
+          >
+            <Heading as="h1" size={["lg", "xl", "2xl"]} color="white">Quran Verse of the Day</Heading>
+          </Box>
+            <Flex
+            direction={["column", "row"]}
+            justify="space-between"
+            align={["center", "flex-start"]}
+            width="full"
+            bg="rgba(0, 0, 0, 0.6)"
+            p={[2, 3, 4]}
+            borderRadius="lg"
+            color="white"
+          >
+            <Text fontSize={["sm", "md", "lg"]} mb={[2, 0]}>{currentDate.gregorian}</Text>
+            <Text fontSize={["sm", "md", "lg"]} fontWeight="bold">{currentDate.time}</Text>
+            <Text fontSize={["sm", "md", "lg"]}>{currentDate.hijri}</Text>
+          </Flex>
+          <Box 
+            w="100%" 
+            bg={bgColor} 
+            borderRadius="lg" 
+            boxShadow="xl" 
+            p={[4, 6, 8]}
+            position="relative"
+            overflow="hidden"
+            borderWidth="1px"
+            borderColor={borderColor}
+          >
+            {loading ? (
+              <Spinner size="xl" color="blue.500" />
+            ) : verse ? (
+              <Fade in={!loading}>
+                <VStack spacing={[4, 6, 8]} align="stretch">
+                  <Text 
+                    fontSize={["2xl", "3xl", "4xl"]} 
+                    fontWeight="bold"
+                    color={arabicTextColor}
+                    textAlign="center"
+                    lineHeight="1.6"
+                    fontFamily="'Amiri', serif"
+                    mb={[2, 4]}
+                  >
+                    {verse.text}
+                  </Text>
+                  <Text 
+                    fontSize={["md", "lg", "xl"]} 
+                    color={textColor}
+                    textAlign="center"
+                    fontStyle="italic"
+                    mb={[2, 4]}
+                  >
+                    {verse.translation}
+                  </Text>
+                  <Flex justify="space-between" align="center" borderTopWidth="1px" borderColor={borderColor} pt={[2, 3]}>
+                    <Text fontSize={["sm", "md"]} fontWeight="bold" color={textColor}>
+                      {verse.surah.englishName}
+                    </Text>
+                    <Text fontSize={["sm", "md"]} color={textColor}>
+                      Verse {verse.number}
+                    </Text>
+                  </Flex>
+                </VStack>
+              </Fade>
+            ) : (
+              <Text color="red.500">Failed to load verse. Please try again.</Text>
+            )}
+          </Box>
+          <Flex justify="center" gap={[2, 3, 4]} wrap="wrap">
+            <IconButton
+              aria-label="Previous verse"
+              icon={<ChevronLeftIcon />}
+              onClick={goToPreviousVerse}
+              colorScheme="teal"
+              size={["md", "lg"]}
+              isRound
+              isDisabled={!verse || verse.number === 1}
+            />
+            <IconButton
+              aria-label="Share verse"
+              icon={<ExternalLinkIcon />}
+              onClick={shareVerse}
+              colorScheme="blue"
+              size={["md", "lg"]}
+              isRound
+            />
+            <IconButton
+              aria-label={isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+              icon={<StarIcon />}
+              onClick={toggleFavorite}
+              colorScheme={isFavorite ? 'yellow' : 'gray'}
+              size={["md", "lg"]}
+              isRound
+            />
+            <IconButton
+              aria-label="Get random verse"
+              icon={<RepeatIcon />}
+              onClick={fetchVerse}
+              colorScheme="green"
+              size={["md", "lg"]}
+              isRound
+            />
+            <IconButton
+              aria-label="Next verse"
+              icon={<ChevronRightIcon />}
+              onClick={goToNextVerse}
+              colorScheme="teal"
+              size={["md", "lg"]}
+              isRound
+            />
+            <IconButton
+              aria-label="Show Tafsir"
+              icon={<InfoIcon />}
+              onClick={onOpen}
+              colorScheme="purple"
+              size={["md", "lg"]}
+              isRound
+            />
+          </Flex>
+        </VStack>
+      </Container>
+      {verse && (
+        <TafsirModal
+          isOpen={isOpen}
+          onClose={onClose}
+          surahNumber={verse.surah.number}
+          verseNumber={verse.number}
         />
-        <Button onClick={fetchVerse} colorScheme="green">Get New Verse</Button>
-      </VStack>
+      )}
     </Box>
   )
 }

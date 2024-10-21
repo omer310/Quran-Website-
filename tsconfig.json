@@ -16,6 +16,6 @@
       "@/*": ["./src/*"]
     }
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
+  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "src/moment-hijri.d.ts"],
   "exclude": ["node_modules"]
 }
