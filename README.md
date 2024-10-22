@@ -1,40 +1,154 @@
-This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+![alt text](image.png)
+
+# Quran Verse Website
+
+A Next.js-based web application that displays random Quran verses, allows users to explore specific verses, and provides features like favorites, history, tafsir (interpretation), and prayer times.
+
+## Features
+
+- Display random Quran verses with translations
+- Navigate through verses
+- Save favorite verses
+- View verse history
+- Read tafsir (interpretation) for verses
+- Customizable Islamic-themed backgrounds
+- Audio recitation of verses with multiple reciters
+- Prayer times for London, UK
+- Responsive design for various screen sizes
+- Dark mode support
+
+## Technologies Used
+
+- Frontend:
+  - Next.js
+  - React
+  - Chakra UI
+  - Axios
+  - Moment.js (with Hijri calendar support)
+
+- Backend:
+  - Node.js
+  - Express
+  - MongoDB (with Mongoose)
+  - Axios for external API calls
 
 ## Getting Started
 
-First, run the development server:
+### Prerequisites
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+- Node.js (v14 or later)
+- npm or yarn
+- MongoDB
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+### Installation
 
-You can start editing the page by modifying `pages/index.tsx`. The page auto-updates as you edit the file.
+1. Clone the repository:
+   ```
+   git clone https://github.com/your-username/quran-verse-website.git
+   cd quran-verse-website
+   ```
 
-[API routes](https://nextjs.org/docs/api-routes/introduction) can be accessed on [http://localhost:3000/api/hello](http://localhost:3000/api/hello). This endpoint can be edited in `pages/api/hello.ts`.
+2. Install dependencies for the frontend:
+   ```
+   npm install
+   ```
 
-The `pages/api` directory is mapped to `/api/*`. Files in this directory are treated as [API routes](https://nextjs.org/docs/api-routes/introduction) instead of React pages.
+3. Navigate to the backend directory and install dependencies:
+   ```
+   cd quran-verse-backend
+   npm install
+   ```
 
-This project uses [`next/font`](https://nextjs.org/docs/basic-features/font-optimization) to automatically optimize and load Inter, a custom Google Font.
+4. Create a `.env` file in the backend directory and add your MongoDB connection string:
+   ```
+   MONGODB_URI=your_mongodb_connection_string
+   ```
 
-## Learn More
+### Running the Application
 
-To learn more about Next.js, take a look at the following resources:
+1. Start the backend server:
+   ```
+   cd quran-verse-backend
+   npm run dev
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. In a new terminal, start the frontend development server:
+   ```
+   cd ..
+   npm run dev
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js/) - your feedback and contributions are welcome!
+3. Open your browser and visit `http://localhost:3000`
 
-## Deploy on Vercel
+## Project Structure
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- `src/pages`: Next.js pages
+- `src/components`: React components
+- `src/styles`: CSS styles
+- `src/config`: Configuration files
+- `quran-verse-backend`: Backend server code
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/deployment) for more details.
+## API Routes
+
+- `/api/verses/random`: Get a random verse
+- `/api/verses/:surahNumber/:verseNumber`: Get a specific verse
+- `/api/verses/history`: Get verse history
+- `/api/verses/reciters`: Get list of available reciters
+
+## New Features
+
+1. **Audio Recitation**: Users can now listen to audio recitations of verses with multiple reciter options.
+   ```typescript:quran_verse_website/src/pages/index.tsx
+   startLine: 44
+   endLine: 66
+   ```
+
+2. **Prayer Times**: A new page displaying daily prayer times for London, UK.
+   ```typescript:quran_verse_website/src/pages/prayer-times.tsx
+   startLine: 1
+   endLine: 34
+   ```
+
+3. **Tafsir Modal**: Users can now read interpretations (tafsir) of verses from various scholars.
+   ```typescript:quran_verse_website/src/components/TafsirModal.tsx
+   startLine: 1
+   endLine: 108
+   ```
+
+4. **Dark Mode**: The application now supports dark mode for better user experience in low-light conditions.
+   ```typescript:quran_verse_website/src/pages/_app.tsx
+   startLine: 6
+   endLine: 20
+   ```
+
+5. **Responsive Header**: A new responsive header with a hamburger menu for mobile devices.
+   ```typescript:quran_verse_website/src/components/Header.tsx
+   startLine: 56
+   endLine: 120
+   ```
+
+6. **Verse Navigation**: Users can now navigate to the next and previous verses.
+   ```typescript:quran_verse_website/src/pages/index.tsx
+   startLine: 204
+   endLine: 216
+   ```
+
+7. **Copy Verse**: A new feature to copy the current verse to the clipboard.
+   ```typescript:quran_verse_website/src/pages/index.tsx
+   startLine: 262
+   endLine: 284
+   ```
+
+## Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
+
+## Acknowledgements
+
+- [Quran API](https://alquran.cloud/api) for providing Quran data
+- [Quran Tafseer API](http://api.quran-tafseer.com/) for tafsir data
+- [Aladhan API](https://aladhan.com/prayer-times-api) for prayer times data
