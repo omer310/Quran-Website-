@@ -1,10 +1,12 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Box, VStack, Heading, Text, useToast, IconButton, Container, Flex, Spinner, Fade, useColorModeValue, Input, Button, useDisclosure } from '@chakra-ui/react'
-import { StarIcon, RepeatIcon, ExternalLinkIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, InfoIcon } from '@chakra-ui/icons'
+import { useState, useEffect, useCallback, useRef } from 'react'
+import { Box, VStack, Heading, Text, useToast, IconButton, Container, Flex, Spinner, Fade, useColorModeValue, Input, Button, useDisclosure, Tabs, TabList, TabPanels, Tab, TabPanel } from '@chakra-ui/react'
+import { StarIcon, RepeatIcon, ExternalLinkIcon, ChevronLeftIcon, ChevronRightIcon, SearchIcon, InfoIcon, CopyIcon } from '@chakra-ui/icons'
+import { FaPlay, FaPause } from 'react-icons/fa'
 import axios from 'axios'
 import Header from '../components/Header'
 import moment from 'moment-hijri'
 import TafsirModal from '../components/TafsirModal'
+import ReciterSelector from '../components/ReciterSelector'
 
 interface Verse {
   number: number
@@ -16,6 +18,7 @@ interface Verse {
     englishName: string
   }
   date: string
+  audioUrl?: string
 }
 
 const ISLAMIC_MONTHS = [
@@ -38,6 +41,9 @@ export default function Home({ onSelectBackground }: HomeProps) {
     hijri: ''
   })
   const { isOpen, onOpen, onClose } = useDisclosure()
+  const [isPlaying, setIsPlaying] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const [selectedReciter, setSelectedReciter] = useState('ar.alafasy');
 
   useEffect(() => {
     fetchVerse();
@@ -46,11 +52,47 @@ export default function Home({ onSelectBackground }: HomeProps) {
     return () => clearInterval(timer);
   }, []);
 
-  const fetchVerse = async () => {
+  useEffect(() => {
+    if (audioRef.current) {
+      audioRef.current.addEventListener('ended', handleAudioEnd);
+      return () => {
+        audioRef.current?.removeEventListener('ended', handleAudioEnd);
+      };
+    }
+  }, [audioRef.current]);
+
+  useEffect(() => {
+    fetchVerse();
+  }, [selectedReciter]);
+
+  const handleAudioEnd = () => {
+    setIsPlaying(false);
+  };
+
+  const saveToHistory = (verse: Verse) => {
+    const history = JSON.parse(localStorage.getItem('verseHistory') || '[]');
+    const newHistoryItem = {
+      ...verse,
+      viewedAt: new Date().toISOString()
+    };
+    const updatedHistory = [newHistoryItem, ...history.filter((item: Verse) => 
+      item.surah.number !== verse.surah.number || item.number !== verse.number
+    )].slice(0, 50); // Keep only the last 50 items
+    localStorage.setItem('verseHistory', JSON.stringify(updatedHistory));
+  };
+
+  const fetchVerse = useCallback(async (keepCurrentVerse: boolean = false) => {
     setLoading(true);
+    setIsPlaying(false);
     try {
-      const response = await axios.get('http://localhost:5000/api/verses/random');
+      let response;
+      if (keepCurrentVerse && verse) {
+        response = await axios.get(`http://localhost:5000/api/verses/${verse.surah.number}/${verse.number}?reciter=${selectedReciter}`);
+      } else {
+        response = await axios.get(`http://localhost:5000/api/verses/random?reciter=${selectedReciter}`);
+      }
       setVerse(response.data);
+      saveToHistory(response.data); // Save to history when a new verse is fetched
       setLoading(false);
     } catch (error) {
       console.error('Error fetching verse:', error);
@@ -63,7 +105,7 @@ export default function Home({ onSelectBackground }: HomeProps) {
       });
       setLoading(false);
     }
-  };
+  }, [verse, selectedReciter, toast]);
 
   const shareVerse = () => {
     if (verse) {
@@ -178,8 +220,71 @@ export default function Home({ onSelectBackground }: HomeProps) {
     // and passed down as a prop to this component
   }, [])
 
+  const toggleAudio = () => {
+    if (audioRef.current) {
+      if (isPlaying) {
+        audioRef.current.pause();
+      } else {
+        audioRef.current.play();
+      }
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  const handleReciterChange = async (identifier: string) => {
+    setSelectedReciter(identifier);
+    setIsPlaying(false);
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current.currentTime = 0;
+    }
+    
+    if (verse) {
+      try {
+        const response = await axios.get(`http://localhost:5000/api/verses/${verse.surah.number}/${verse.number}?reciter=${identifier}`);
+        setVerse(prevVerse => ({
+          ...prevVerse!,
+          audioUrl: response.data.audioUrl
+        }));
+      } catch (error) {
+        console.error('Error updating audio:', error);
+        toast({
+          title: 'Error',
+          description: 'Failed to update audio. Please try again.',
+          status: 'error',
+          duration: 5000,
+          isClosable: true,
+        });
+      }
+    }
+  };
+
+  const copyVerseToClipboard = () => {
+    if (verse) {
+      const verseText = `${verse.text}\n\n${verse.translation}\n\n- Quran ${verse.surah.englishName}, Verse ${verse.number}`;
+      navigator.clipboard.writeText(verseText).then(() => {
+        toast({
+          title: 'Copied to clipboard',
+          description: 'The verse has been copied to your clipboard.',
+          status: 'success',
+          duration: 2000,
+          isClosable: true,
+        });
+      }).catch((err) => {
+        console.error('Failed to copy text: ', err);
+        toast({
+          title: 'Failed to copy',
+          description: 'An error occurred while copying the verse.',
+          status: 'error',
+          duration: 2000,
+          isClosable: true,
+        });
+      });
+    }
+  };
+
   return (
-    <Box minHeight="100vh" pt={["16", "20", "24"]}>
+    <Box minHeight="100vh" pt={["20", "24", "28"]}>
       <Header onSelectBackground={onSelectBackground} />
       <Container maxW="container.md" py={[4, 8, 12]}>
         <VStack spacing={[4, 6, 8]} textAlign="center">
@@ -191,7 +296,7 @@ export default function Home({ onSelectBackground }: HomeProps) {
           >
             <Heading as="h1" size={["lg", "xl", "2xl"]} color="white">Quran Verse of the Day</Heading>
           </Box>
-            <Flex
+          <Flex
             direction={["column", "row"]}
             justify="space-between"
             align={["center", "flex-start"]}
@@ -216,44 +321,65 @@ export default function Home({ onSelectBackground }: HomeProps) {
             borderWidth="1px"
             borderColor={borderColor}
           >
-            {loading ? (
-              <Spinner size="xl" color="blue.500" />
-            ) : verse ? (
-              <Fade in={!loading}>
-                <VStack spacing={[4, 6, 8]} align="stretch">
-                  <Text 
-                    fontSize={["2xl", "3xl", "4xl"]} 
-                    fontWeight="bold"
-                    color={arabicTextColor}
-                    textAlign="center"
-                    lineHeight="1.6"
-                    fontFamily="'Amiri', serif"
-                    mb={[2, 4]}
-                  >
-                    {verse.text}
-                  </Text>
-                  <Text 
-                    fontSize={["md", "lg", "xl"]} 
-                    color={textColor}
-                    textAlign="center"
-                    fontStyle="italic"
-                    mb={[2, 4]}
-                  >
-                    {verse.translation}
-                  </Text>
-                  <Flex justify="space-between" align="center" borderTopWidth="1px" borderColor={borderColor} pt={[2, 3]}>
-                    <Text fontSize={["sm", "md"]} fontWeight="bold" color={textColor}>
-                      {verse.surah.englishName}
+            <ReciterSelector onSelectReciter={handleReciterChange} />
+            <Box mt={4}>
+              {loading ? (
+                <Spinner size="xl" color="blue.500" />
+              ) : verse ? (
+                <Fade in={!loading}>
+                  <VStack spacing={[4, 6, 8]} align="stretch">
+                    <Box position="relative">
+                      <Flex alignItems="flex-start">
+                        <IconButton
+                          aria-label="Copy verse"
+                          icon={<CopyIcon />}
+                          onClick={copyVerseToClipboard}
+                          size="sm"
+                          colorScheme="blue"
+                          variant="ghost"
+                          mr={2}
+                          mt={1}
+                        />
+                        <Text 
+                          fontSize={["2xl", "3xl", "4xl"]} 
+                          fontWeight="bold"
+                          color={arabicTextColor}
+                          textAlign="right"
+                          lineHeight="1.6"
+                          fontFamily="'Amiri', serif"
+                          mb={[2, 4]}
+                          flex={1}
+                        >
+                          {verse.text}
+                        </Text>
+                      </Flex>
+                    </Box>
+                    <Text 
+                      fontSize={["md", "lg", "xl"]} 
+                      color={textColor}
+                      textAlign="center"
+                      fontStyle="italic"
+                      mb={[2, 4]}
+                    >
+                      {verse.translation}
                     </Text>
-                    <Text fontSize={["sm", "md"]} color={textColor}>
-                      Verse {verse.number}
-                    </Text>
-                  </Flex>
-                </VStack>
-              </Fade>
-            ) : (
-              <Text color="red.500">Failed to load verse. Please try again.</Text>
-            )}
+                    <Flex justify="space-between" align="center" borderTopWidth="1px" borderColor={borderColor} pt={[2, 3]}>
+                      <Text fontSize={["sm", "md"]} fontWeight="bold" color={textColor}>
+                        {verse.surah.englishName}
+                      </Text>
+                      <Text fontSize={["sm", "md"]} color={textColor}>
+                        Verse {verse.number}
+                      </Text>
+                    </Flex>
+                    {verse.audioUrl && (
+                      <audio ref={audioRef} src={verse.audioUrl} />
+                    )}
+                  </VStack>
+                </Fade>
+              ) : (
+                <Text color="red.500">Failed to load verse. Please try again.</Text>
+              )}
+            </Box>
           </Box>
           <Flex justify="center" gap={[2, 3, 4]} wrap="wrap">
             <IconButton
@@ -284,7 +410,7 @@ export default function Home({ onSelectBackground }: HomeProps) {
             <IconButton
               aria-label="Get random verse"
               icon={<RepeatIcon />}
-              onClick={fetchVerse}
+              onClick={() => fetchVerse()}
               colorScheme="green"
               size={["md", "lg"]}
               isRound
@@ -305,6 +431,16 @@ export default function Home({ onSelectBackground }: HomeProps) {
               size={["md", "lg"]}
               isRound
             />
+            {verse && verse.audioUrl && (
+              <IconButton
+                aria-label={isPlaying ? 'Pause' : 'Play'}
+                icon={isPlaying ? <FaPause /> : <FaPlay />}
+                onClick={toggleAudio}
+                colorScheme="orange"
+                size={["md", "lg"]}
+                isRound
+              />
+            )}
           </Flex>
         </VStack>
       </Container>
@@ -314,6 +450,13 @@ export default function Home({ onSelectBackground }: HomeProps) {
           onClose={onClose}
           surahNumber={verse.surah.number}
           verseNumber={verse.number}
+        />
+      )}
+      {verse && verse.audioUrl && (
+        <audio
+          ref={audioRef}
+          src={verse.audioUrl}
+          onEnded={handleAudioEnd}
         />
       )}
     </Box>

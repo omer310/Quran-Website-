@@ -1,7 +1,6 @@
-import { useState, useEffect } from 'react'
-import { Box, VStack, Heading, Text, Container, Flex } from '@chakra-ui/react'
+import React, { useState, useEffect } from 'react'
+import { Box, VStack, Heading, Text, Container, Button, useColorModeValue } from '@chakra-ui/react'
 import Header from '../components/Header'
-import axios from 'axios'
 
 interface Verse {
   number: number
@@ -12,7 +11,7 @@ interface Verse {
     name: string
     englishName: string
   }
-  date: string
+  viewedAt: string
 }
 
 interface HistoryProps {
@@ -20,54 +19,59 @@ interface HistoryProps {
 }
 
 export default function History({ onSelectBackground }: HistoryProps) {
-  const [verses, setVerses] = useState<Verse[]>([])
+  const [history, setHistory] = useState<Verse[]>([])
 
   useEffect(() => {
-    const fetchHistory = async () => {
-      try {
-        const response = await axios.get('http://localhost:5000/api/verses/history');
-        setVerses(response.data);
-      } catch (error) {
-        console.error('Error fetching verse history:', error);
-      }
-    };
-    fetchHistory();
-  }, []);
+    const storedHistory = JSON.parse(localStorage.getItem('verseHistory') || '[]')
+    setHistory(storedHistory)
+  }, [])
+
+  const removeFromHistory = (verse: Verse) => {
+    const updatedHistory = history.filter(
+      (item) => item.surah.number !== verse.surah.number || item.number !== verse.number
+    )
+    setHistory(updatedHistory)
+    localStorage.setItem('verseHistory', JSON.stringify(updatedHistory))
+  }
+
+  const textColor = useColorModeValue('gray.800', 'white');
+  const cardBg = useColorModeValue('white', 'gray.700');
 
   return (
-    <Box minHeight="100vh">
+    <Box minHeight="100vh" pt={["20", "24", "28"]}>
       <Header onSelectBackground={onSelectBackground} />
-      <Flex direction="column" pt="24" height="calc(100vh - 6rem)">
-        <Container maxW="container.md" py={4}>
+      <Container maxW="container.md" py={[8, 12, 16]}>
+        <VStack spacing={[6, 8, 10]} textAlign="center">
           <Box
             bg="rgba(0, 0, 0, 0.6)"
             p={4}
             borderRadius="lg"
             width="full"
-            mb={4}
           >
-            <Heading as="h1" size="2xl" color="white">Verse History</Heading>
+            <Heading as="h1" size={["xl", "2xl", "3xl"]} color="white" mb={2}>
+              Verse History
+            </Heading>
+            <Text fontSize={["md", "lg"]} color="white" opacity={0.8}>
+              Your recently viewed verses
+            </Text>
           </Box>
-        </Container>
-        <Box flex="1" overflowY="auto" pb={4}>
-          <Container maxW="container.md">
-            <VStack spacing={4} align="stretch">
-              {verses.length > 0 ? (
-                verses.map((verse, index) => (
-                  <Box key={index} borderWidth={1} borderRadius="lg" p={4} bg="white">
-                    <Text fontSize="xl" fontWeight="bold">{verse.surah.englishName} - Verse {verse.number}</Text>
-                    <Text fontSize="md" mb={2}>{verse.date}</Text>
-                    <Text fontSize="xl" fontStyle="italic">{verse.text}</Text>
-                    <Text fontSize="lg">{verse.translation}</Text>
-                  </Box>
-                ))
-              ) : (
-                <Text>No verses in history yet.</Text>
-              )}
-            </VStack>
-          </Container>
-        </Box>
-      </Flex>
+          {history.length > 0 ? (
+            history.map((verse, index) => (
+              <Box key={index} borderWidth={1} borderRadius="lg" p={4} bg={cardBg} w="100%" boxShadow="md">
+                <Text fontSize="xl" fontWeight="bold" color={textColor}>{verse.surah.englishName} - Verse {verse.number}</Text>
+                <Text fontSize="xl" fontStyle="italic" mb={2} color={textColor}>{verse.text}</Text>
+                <Text fontSize="lg" mb={4} color={textColor}>{verse.translation}</Text>
+                <Text fontSize="sm" mb={2} color={textColor}>Viewed on: {new Date(verse.viewedAt).toLocaleString()}</Text>
+                <Button colorScheme="red" size="sm" onClick={() => removeFromHistory(verse)}>
+                  Remove from History
+                </Button>
+              </Box>
+            ))
+          ) : (
+            <Text color={textColor}>No verse history yet.</Text>
+          )}
+        </VStack>
+      </Container>
     </Box>
   )
 }
