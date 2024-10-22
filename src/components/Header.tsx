@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Box, Flex, useColorMode, useColorModeValue, IconButton, Link as ChakraLink, Menu, MenuButton, MenuList, MenuItem, chakra } from '@chakra-ui/react';
 import { MoonIcon, SunIcon, HamburgerIcon } from '@chakra-ui/icons';
 import NextLink from 'next/link';
@@ -15,6 +15,11 @@ const Header: React.FC<HeaderProps> = ({ onSelectBackground }) => {
   const hoverBg = useColorModeValue('rgba(237, 242, 247, 0.8)', 'rgba(45, 55, 72, 0.8)');
   const activeBg = useColorModeValue('rgba(226, 232, 240, 0.8)', 'rgba(74, 85, 104, 0.8)');
   const router = useRouter();
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const isActive = (path: string) => router.pathname === path;
 
@@ -52,6 +57,8 @@ const Header: React.FC<HeaderProps> = ({ onSelectBackground }) => {
       </ChakraLink>
     </NextLink>
   ));
+
+  if (!mounted) return null;
 
   return (
     <Box

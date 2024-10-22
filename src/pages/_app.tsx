@@ -47,7 +47,7 @@ function MyApp({ Component, pageProps }: AppProps) {
           setCycleIndex((prevIndex) => (prevIndex + 1) % (backgrounds.length - 1));
           setFadeOut(false);
         }, 500); // Half of the transition duration
-      }, 30000); // Change background every 30 seconds
+      }, 50000); // Change background every 30 seconds
     }
     return () => {
       if (intervalId) clearInterval(intervalId);
